@@ -24,7 +24,8 @@ class Messenger(API):
 
     def start_receiving(self, port=8080):
         app = web.Application()
-        app.add_routes([web.post('/{tail:.*}', self._message_handler), web.get('/{tail:.*}', self._verification_handler)])
+        app.add_routes([web.post('/{tail:.*}', self._message_handler),
+                        web.get('/{tail:.*}', self._verification_handler)])
         web.run_app(app, port=port)
 
     async def _message_handler(self, request: Request):
@@ -32,6 +33,9 @@ class Messenger(API):
         raw_message = await request.json()
         for event in raw_message['entry']:
             for m in event['messaging']:
+                if 'text' not in m['message']:
+                    self.log.warning(f"Skip message as it does not contain text:\n{m}")
+                    continue
                 message = Message(m['sender']['id'], m['recipient']['id'], m['message']['text'], None)
                 asyncio.ensure_future(self.callback(message))
 
