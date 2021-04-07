@@ -29,7 +29,7 @@ class API:
             for image in images:
                 await self._send_attachment(base_dict.copy(), image)
 
-        base_dict['message'] = {'text': text}
+        base_dict['message']['text'] = text
         return await self._send_message_dict(base_dict)
 
     async def send_message(self, recipient_id: str, text: str, images: Optional[List[str]] = None):
@@ -38,7 +38,7 @@ class API:
             for image in images:
                 await self._send_attachment(base_dict.copy(), image)
 
-        base_dict['message'] = {'text': text}
+        base_dict['message']['text'] = text
         return await self._send_message_dict(base_dict)
 
     async def send_attachments(self, recipient_id: str, attachments: List[str], file_type: str = "image"):
@@ -66,7 +66,7 @@ class API:
 
     @staticmethod
     def _get_messaging_dict(messaging_type: MessagingType, recipient_id: str):
-        return {'messaging_type': messaging_type.value, 'recipient': {'id': recipient_id}}
+        return {'messaging_type': messaging_type.value, 'recipient': {'id': recipient_id}, 'message': {}}
 
     def _get_endpoint_url(self, endpoint: str) -> str:
         return f"{self.API_URL}{endpoint}?access_token={self.access_token}"
