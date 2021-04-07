@@ -10,7 +10,7 @@ class EchoBot:
         self.messenger = Messenger("access", "verify", self.reply)
 
     async def reply(self, message: Message):
-        await self.messenger.send_message(message.sender_id, message.text)
+        await self.messenger.send_reply(message, message.text)
 
     def run(self):
         logging.basicConfig(level=logging.DEBUG)

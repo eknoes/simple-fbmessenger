@@ -23,21 +23,30 @@ class API:
         self.attachment_location = attachment_location
         self.public_attachment_url = public_attachment_url
 
-    async def reply(self, message: Message, text: str, attachment: Optional[str] = None) -> bool:
-        base_dict = self.send_message_dict(MessagingType.RESPONSE, message.sender_id)
+    async def send_reply(self, message: Message, text: str, images: Optional[List[str]] = None) -> bool:
+        base_dict = self._get_messaging_dict(MessagingType.RESPONSE, message.sender_id)
+        if images:
+            for image in images:
+                await self._send_attachment(base_dict.copy(), image)
+
         base_dict['message'] = {'text': text}
-        if attachment:
-            base_dict = self.add_attachment(base_dict, attachment)
         return await self._send_message_dict(base_dict)
 
-    async def send_message(self, recipient_id: str, text: str, attachment: Optional[str] = None):
-        base_dict = self.send_message_dict(MessagingType.MESSAGE_TAG, recipient_id)
+    async def send_message(self, recipient_id: str, text: str, images: Optional[List[str]] = None):
+        base_dict = self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id)
+        if images:
+            for image in images:
+                await self._send_attachment(base_dict.copy(), image)
+
         base_dict['message'] = {'text': text}
-        if attachment:
-            base_dict = self.add_attachment(base_dict, attachment)
         return await self._send_message_dict(base_dict)
 
-    def add_attachment(self, message_dict, attachment: str, file_type: str = "image"):
+    async def send_attachments(self, recipient_id: str, attachments: List[str], file_type: str = "image"):
+        for attachment in attachments:
+            await self._send_attachment(self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id),
+                                        attachment, file_type)
+
+    async def _send_attachment(self, message_dict, attachment: str, file_type: str = "image"):
         filename = os.path.basename(shutil.copy2(attachment, self.attachment_location))
         url = self.public_attachment_url + filename
         message_dict['message']['attachment'] = {'type': file_type, 'payload': {'url': url, 'is_reusable': True}}
@@ -46,7 +55,7 @@ class API:
     async def _send_message_dict(self, message_dict) -> bool:
         self.log.debug(f"Send message:\n{message_dict}")
         async with aiohttp.ClientSession() as session:
-            url = self.get_endpoint_url("me/messages")
+            url = self._get_endpoint_url("me/messages")
             self.log.debug(f"Send to {url}")
             response = await session.post(url, json=message_dict)
             self.log.debug(f"Response of Facebook API: {response.status} {response.reason}")
@@ -56,8 +65,8 @@ class API:
         return False
 
     @staticmethod
-    def send_message_dict(messaging_type: MessagingType, recipient_id: str):
+    def _get_messaging_dict(messaging_type: MessagingType, recipient_id: str):
         return {'messaging_type': messaging_type.value, 'recipient': {'id': recipient_id}}
 
-    def get_endpoint_url(self, endpoint: str) -> str:
+    def _get_endpoint_url(self, endpoint: str) -> str:
         return f"{self.API_URL}{endpoint}?access_token={self.access_token}"
