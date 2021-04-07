@@ -1,5 +1,6 @@
-import json
 import logging
+import os
+import shutil
 from typing import List, Optional
 
 import aiohttp
@@ -8,22 +9,39 @@ from fbmessenger.models import Message, MessagingType
 
 
 class API:
-    access_token: str
     API_URL = "https://graph.facebook.com/v10.0/"
+
+    access_token: str
+    attachment_location: Optional[str]
+    public_attachment_url: Optional[str]
+
     log: logging.Logger = logging.getLogger(__name__)
 
-    def __init__(self, access_token: str):
+    def __init__(self, access_token: str, attachment_location: Optional[str] = None,
+                 public_attachment_url: Optional[str] = None):
         self.access_token = access_token
+        self.attachment_location = attachment_location
+        self.public_attachment_url = public_attachment_url
 
-    async def reply(self, message: Message, text: str) -> bool:
+    async def reply(self, message: Message, text: str, attachment: Optional[str] = None) -> bool:
         base_dict = self.send_message_dict(MessagingType.RESPONSE, message.sender_id)
         base_dict['message'] = {'text': text}
+        if attachment:
+            base_dict = self.add_attachment(base_dict, attachment)
         return await self._send_message_dict(base_dict)
 
-    async def send_message(self, recipient_id: str, text: str, attachments: Optional[List[str]] = None):
+    async def send_message(self, recipient_id: str, text: str, attachment: Optional[str] = None):
         base_dict = self.send_message_dict(MessagingType.MESSAGE_TAG, recipient_id)
         base_dict['message'] = {'text': text}
+        if attachment:
+            base_dict = self.add_attachment(base_dict, attachment)
         return await self._send_message_dict(base_dict)
+
+    def add_attachment(self, message_dict, attachment: str, file_type: str = "image"):
+        filename = os.path.basename(shutil.copy2(attachment, self.attachment_location))
+        url = self.public_attachment_url + filename
+        message_dict['message']['attachment'] = {'type': file_type, 'payload': {'url': url, 'is_reusable': True}}
+        return message_dict
 
     async def _send_message_dict(self, message_dict) -> bool:
         self.log.debug(f"Send message:\n{message_dict}")

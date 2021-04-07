@@ -13,18 +13,14 @@ class Messenger(API):
     access_token: str
     verify_token: str
     callback: Callable[[Message], Awaitable[None]]
-    attachment_location: Optional[str]
-    public_attachment_url: Optional[str]
     log: logging.Logger = logging.getLogger(__name__)
 
     def __init__(self, access_token: str, verify_token: str, message_callback: Callable[[Message], Awaitable[None]],
                  attachment_location: Optional[str] = None, public_attachment_url: Optional[str] = None):
-        super().__init__(access_token)
+        super().__init__(access_token, attachment_location, public_attachment_url)
         self.access_token = access_token
         self.verify_token = verify_token
         self.callback = message_callback
-        self.attachment_location = attachment_location
-        self.public_attachment_url = public_attachment_url
 
     def start_receiving(self, port=8080):
         app = web.Application()
