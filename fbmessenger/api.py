@@ -28,7 +28,9 @@ class API:
     async def _send_message_dict(self, message_dict) -> bool:
         self.log.debug(f"Send message:\n{message_dict}")
         async with aiohttp.ClientSession() as session:
-            response = await session.post(self.get_endpoint_url("me/messages"), json=message_dict)
+            url = self.get_endpoint_url("me/messages")
+            self.log.debug(f"Send to {url}")
+            response = await session.post(url, json=message_dict)
             self.log.debug(f"Response of Facebook API: {response.status} {response.reason}")
             json_response = await response.json()
             if 'message_id' in json_response:
