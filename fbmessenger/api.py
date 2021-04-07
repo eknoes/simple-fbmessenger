@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import aiohttp
 
-from fbmessenger.models import Message, MessagingType
+from fbmessenger.models import Message, MessagingType, SenderAction
 
 
 class API:
@@ -22,6 +22,9 @@ class API:
         self.access_token = access_token
         self.attachment_location = attachment_location
         self.public_attachment_url = public_attachment_url
+
+    async def send_action(self, recipient_id: str, action: SenderAction):
+        await self._send_message_dict({'recipient': recipient_id, 'sender_action': action.value})
 
     async def send_reply(self, message: Message, text: str, images: Optional[List[str]] = None) -> bool:
         if images:
