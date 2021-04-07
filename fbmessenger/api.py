@@ -24,20 +24,20 @@ class API:
         self.public_attachment_url = public_attachment_url
 
     async def send_reply(self, message: Message, text: str, images: Optional[List[str]] = None) -> bool:
-        base_dict = self._get_messaging_dict(MessagingType.RESPONSE, message.sender_id)
         if images:
             for image in images:
-                await self._send_attachment(base_dict.copy(), image)
+                await self._send_attachment(self._get_messaging_dict(MessagingType.RESPONSE, message.sender_id), image)
 
+        base_dict = self._get_messaging_dict(MessagingType.RESPONSE, message.sender_id)
         base_dict['message']['text'] = text
         return await self._send_message_dict(base_dict)
 
     async def send_message(self, recipient_id: str, text: str, images: Optional[List[str]] = None):
-        base_dict = self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id)
         if images:
             for image in images:
-                await self._send_attachment(base_dict.copy(), image)
+                await self._send_attachment(self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id), image)
 
+        base_dict = self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id)
         base_dict['message']['text'] = text
         return await self._send_message_dict(base_dict)
 
@@ -46,11 +46,11 @@ class API:
             await self._send_attachment(self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id),
                                         attachment, file_type)
 
-    async def _send_attachment(self, message_dict, attachment: str, file_type: str = "image"):
+    async def _send_attachment(self, message_dict, attachment: str, file_type: str = "image") -> bool:
         filename = os.path.basename(shutil.copy2(attachment, self.attachment_location))
         url = self.public_attachment_url + filename
         message_dict['message']['attachment'] = {'type': file_type, 'payload': {'url': url, 'is_reusable': True}}
-        return message_dict
+        return await self._send_message_dict(message_dict)
 
     async def _send_message_dict(self, message_dict) -> bool:
         self.log.debug(f"Send message:\n{message_dict}")
