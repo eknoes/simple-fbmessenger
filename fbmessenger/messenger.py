@@ -34,9 +34,10 @@ class Messenger(API):
     async def _message_handler(self, request: Request):
         self.log.debug(f'Received request:\n{await request.text()}')
         raw_message = await request.json()
-
-        message = Message(raw_message['sender']['id'], raw_message['recipient']['id'], raw_message['message']['text'], None)
-        asyncio.ensure_future(self.callback(message))
+        for event in raw_message['entry']:
+            for m in event['messaging']:
+                message = Message(m['sender']['id'], m['recipient']['id'], m['message']['text'], None)
+                asyncio.ensure_future(self.callback(message))
 
         return web.Response(text="")
 
