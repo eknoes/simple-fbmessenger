@@ -90,14 +90,13 @@ class API:
             response = await session.post(url, json=message_dict)
             self.log.debug(f"Response of Facebook API: {response.status} {response.reason}")
             json_response = await response.json()
-            self.log.debug(f"Received:\n{json_response}")
 
             if 200 <= response.status < 300:
                 if 'message_id' in json_response:
                     return True
                 return False
 
-            # An error happened
+            self.log.warning(f"An error occurred:\n{json_response}")
             if 'error' not in json_response:
                 raise ValueError("Messenger API did not return an HTTP Status Code 2XX, but also no error response")
 
