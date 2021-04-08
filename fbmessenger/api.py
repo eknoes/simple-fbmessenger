@@ -101,8 +101,12 @@ class API:
                 raise ValueError("Messenger API did not return an HTTP Status Code 2XX, but also no error response")
 
             error = json_response['error']
-            raise MessengerError(error['message'], error['type'], error['code'],
-                                 error['error_subcode'], error['fbtrace_id'])
+
+            subcode = None
+            if 'subcode' in error:
+                subcode = error['subcode']
+
+            raise MessengerError(error['message'], error['type'], error['code'], subcode, error['fbtrace_id'])
         return False
 
     @staticmethod
