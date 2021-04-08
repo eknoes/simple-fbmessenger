@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+
 from typing import List, Optional
 
 
@@ -9,7 +10,15 @@ class Message:
     sender_id: str
     receiver_id: str
     text: str
-    attachments: Optional[List[Path]]
+    attachments: Optional[List[Path]] = None
+    payload: Optional[str] = None
+
+
+@dataclass
+class QuickReply:
+    title: str
+    payload: str
+    image_url: Optional[str] = None
 
 
 class MessagingType(Enum):

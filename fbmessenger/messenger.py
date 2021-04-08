@@ -36,7 +36,11 @@ class Messenger(API):
                 if 'text' not in m['message']:
                     self.log.warning(f"Skip message as it does not contain text:\n{m}")
                     continue
-                message = Message(m['sender']['id'], m['recipient']['id'], m['message']['text'], None)
+                message = Message(m['sender']['id'], m['recipient']['id'], m['message']['text'])
+
+                if 'quick_reply' in m['message']:
+                    message.payload = m['message']['quick_reply']['payload']
+
                 asyncio.ensure_future(self.callback(message))
 
         return web.Response(text="")

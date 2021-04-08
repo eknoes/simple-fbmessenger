@@ -1,11 +1,12 @@
 import logging
 import os
 import shutil
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import aiohttp
 
-from fbmessenger.models import Message, MessagingType, SenderAction
+from fbmessenger.errors import MessengerError
+from fbmessenger.models import Message, MessagingType, SenderAction, QuickReply
 
 
 class API:
@@ -24,24 +25,31 @@ class API:
         self.public_attachment_url = public_attachment_url
 
     async def send_action(self, recipient_id: str, action: SenderAction):
-        await self._send_message_dict({'recipient': recipient_id, 'sender_action': action.value})
+        await self._send_message_dict({'recipient': {'id': recipient_id}, 'sender_action': action.value})
 
-    async def send_reply(self, message: Message, text: str, images: Optional[List[str]] = None) -> bool:
+    async def send_reply(self, message: Message, text: str, images: Optional[List[str]] = None,
+                         quick_replies: List[QuickReply] = None) -> bool:
+        return await self.send_message(message.sender_id, text, reply=True, images=images, quick_replies=quick_replies)
+
+    async def send_message(self, recipient_id: str, text: str, reply: bool = False, images: Optional[List[str]] = None,
+                           quick_replies: List[QuickReply] = None):
+        messaging_type = MessagingType.MESSAGE_TAG
+        if reply:
+            messaging_type = MessagingType.RESPONSE
         if images:
             for image in images:
-                await self._send_attachment(self._get_messaging_dict(MessagingType.RESPONSE, message.sender_id), image)
+                await self._send_attachment(self._get_messaging_dict(messaging_type, recipient_id), image)
 
-        base_dict = self._get_messaging_dict(MessagingType.RESPONSE, message.sender_id)
+        base_dict = self._get_messaging_dict(messaging_type, recipient_id)
         base_dict['message']['text'] = text
-        return await self._send_message_dict(base_dict)
-
-    async def send_message(self, recipient_id: str, text: str, images: Optional[List[str]] = None):
-        if images:
-            for image in images:
-                await self._send_attachment(self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id), image)
-
-        base_dict = self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id)
-        base_dict['message']['text'] = text
+        if quick_replies:
+            replies = []
+            for reply in quick_replies:
+                reply_dict = {'content_type': 'text', 'title': reply.title, 'payload': reply.payload}
+                if reply.image_url:
+                    reply_dict['image_url'] = reply.image_url
+                replies.append(reply_dict)
+            base_dict['message']['quick_replies'] = replies
         return await self._send_message_dict(base_dict)
 
     async def send_attachments(self, recipient_id: str, attachments: List[str], file_type: str = "image"):
@@ -63,12 +71,23 @@ class API:
             response = await session.post(url, json=message_dict)
             self.log.debug(f"Response of Facebook API: {response.status} {response.reason}")
             json_response = await response.json()
-            if 'message_id' in json_response:
-                return True
+
+            if 200 <= response.status < 300:
+                if 'message_id' in json_response:
+                    return True
+                return False
+
+            # An error happened
+            if 'error' not in json_response:
+                raise ValueError("Messenger API did not return an HTTP Status Code 2XX, but also no error response")
+
+            error = json_response['error']
+            raise MessengerError(error['message'], error['type'], error['code'],
+                                 error['error_subcode'], error['fbtrace_id'])
         return False
 
     @staticmethod
-    def _get_messaging_dict(messaging_type: MessagingType, recipient_id: str):
+    def _get_messaging_dict(messaging_type: MessagingType, recipient_id: str) -> Dict:
         return {'messaging_type': messaging_type.value, 'recipient': {'id': recipient_id}, 'message': {}}
 
     def _get_endpoint_url(self, endpoint: str) -> str:
