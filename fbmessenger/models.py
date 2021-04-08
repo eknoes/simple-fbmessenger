@@ -9,16 +9,25 @@ from typing import List, Optional
 class Message:
     sender_id: str
     receiver_id: str
-    text: str
+    text: Optional[str] = None
     attachments: Optional[List[Path]] = None
     payload: Optional[str] = None
 
 
 @dataclass
-class QuickReply:
+class PayloadObject:
     title: str
     payload: str
+
+
+@dataclass
+class QuickReply(PayloadObject):
     image_url: Optional[str] = None
+
+
+@dataclass
+class PostbackButton(PayloadObject):
+    type: str = "postback"
 
 
 class MessagingType(Enum):

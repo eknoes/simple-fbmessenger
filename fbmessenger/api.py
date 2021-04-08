@@ -6,7 +6,7 @@ from typing import List, Optional, Dict
 import aiohttp
 
 from fbmessenger.errors import MessengerError
-from fbmessenger.models import Message, MessagingType, SenderAction, QuickReply
+from fbmessenger.models import Message, MessagingType, SenderAction, QuickReply, PostbackButton
 
 
 class API:
@@ -28,20 +28,33 @@ class API:
         await self._send_message_dict({'recipient': {'id': recipient_id}, 'sender_action': action.value})
 
     async def send_reply(self, message: Message, text: str, images: Optional[List[str]] = None,
-                         quick_replies: List[QuickReply] = None) -> bool:
-        return await self.send_message(message.sender_id, text, reply=True, images=images, quick_replies=quick_replies)
+                         quick_replies: List[QuickReply] = None, buttons: List[PostbackButton] = None) -> bool:
+        return await self.send_message(message.sender_id, text, reply=True, images=images, quick_replies=quick_replies,
+                                       buttons=buttons)
 
     async def send_message(self, recipient_id: str, text: str, reply: bool = False, images: Optional[List[str]] = None,
-                           quick_replies: List[QuickReply] = None):
+                           quick_replies: List[QuickReply] = None, buttons: List[PostbackButton] = None):
+        if buttons and quick_replies:
+            raise ValueError("Combining buttons and QuickReplies in one message is not possible")
+
+        if buttons and len(buttons) > 3:
+            raise ValueError("Using more than 3 buttons is not supported")
+
         messaging_type = MessagingType.MESSAGE_TAG
         if reply:
             messaging_type = MessagingType.RESPONSE
+
+        # Send all images first
         if images:
             for image in images:
                 await self._send_attachment(self._get_messaging_dict(messaging_type, recipient_id), image)
 
+        # Construct message dict
         base_dict = self._get_messaging_dict(messaging_type, recipient_id)
-        base_dict['message']['text'] = text
+
+        if not buttons:
+            base_dict['message']['text'] = text
+
         if quick_replies:
             replies = []
             for reply in quick_replies:
@@ -50,6 +63,12 @@ class API:
                     reply_dict['image_url'] = reply.image_url
                 replies.append(reply_dict)
             base_dict['message']['quick_replies'] = replies
+
+        if buttons:
+            buttons = list(map(lambda x: {'type': x.type, 'payload': x.payload, 'title': x.title}, buttons))
+            payload = {'template_type': 'button', 'text': text, 'buttons': buttons}
+            base_dict['message']['attachment'] = {'type': 'template', 'payload': payload}
+
         return await self._send_message_dict(base_dict)
 
     async def send_attachments(self, recipient_id: str, attachments: List[str], file_type: str = "image"):
