@@ -36,20 +36,23 @@ class Messenger(API):
             # Handle messaging events
             if 'messaging' in event:
                 for m in event['messaging']:
-                    if 'text' not in m['message']:
-                        self.log.warning(f"Skip message as it does not contain text:\n{m}")
-                        continue
-                    message = Message(m['sender']['id'], m['recipient']['id'], text=m['message']['text'])
+                    message = None
+                    if 'text' in m['message']:
+                        message = Message(m['sender']['id'], m['recipient']['id'], text=m['message']['text'])
+                        if 'quick_reply' in m['message']:
+                            message.payload = m['message']['quick_reply']['payload']
 
-                    if 'quick_reply' in m['message']:
-                        message.payload = m['message']['quick_reply']['payload']
+                    if 'postback' in event:
+                        message = Message(m['sender']['id'], m['recipient']['id'],
+                                          payload=m['message']['postback']['payload'])
+
+                    if not message:
+                        self.log.debug("No content, skip message")
+                        continue
 
                     asyncio.ensure_future(self.callback(message))
 
             # Handle postback events
-            if 'postback' in event:
-                message = Message(event['sender']['id'], event['recipient']['id'], payload=event['postback']['payload'])
-                asyncio.ensure_future(self.callback(message))
 
         return web.Response(text="")
 
