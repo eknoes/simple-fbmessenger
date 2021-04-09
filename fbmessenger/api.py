@@ -76,16 +76,23 @@ class API:
             await self._send_attachment(self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id),
                                         attachment, file_type)
 
+    async def set_get_started_payload(self, payload: str):
+        await self._send_message_dict({'get_started': {'payload': payload}}, 'me/messenger_profile')
+
+    async def set_greeting_text(self, greeting_text: str):
+        await self._send_message_dict({'greeting': [{'locale': 'default', 'text': greeting_text}]},
+                                      'me/messenger_profile')
+
     async def _send_attachment(self, message_dict, attachment: str, file_type: str = "image") -> bool:
         filename = os.path.basename(shutil.copy2(attachment, self.attachment_location))
         url = self.public_attachment_url + filename
         message_dict['message']['attachment'] = {'type': file_type, 'payload': {'url': url, 'is_reusable': True}}
         return await self._send_message_dict(message_dict)
 
-    async def _send_message_dict(self, message_dict) -> bool:
+    async def _send_message_dict(self, message_dict, endpoint="me/messages") -> bool:
         self.log.debug(f"Send message:\n{message_dict}")
         async with aiohttp.ClientSession() as session:
-            url = self._get_endpoint_url("me/messages")
+            url = self._get_endpoint_url(endpoint)
             self.log.debug(f"Send to {url}")
             response = await session.post(url, json=message_dict)
             self.log.debug(f"Response of Facebook API: {response.status} {response.reason}")
