@@ -10,8 +10,8 @@ requirements = [
 ]
 
 setup(
-    name="fbmessenger",
-    version="0.0.dev1",
+    name="simple-fbmessenger",
+    version="0.1.0",
     author="Soenke Huster",
     author_email="projects@eknoes.de",
     description="An unofficial simple library to provide basic communication with Facebooks Messenger API",
@@ -22,7 +22,7 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         (
             'License :: OSI Approved :: '
