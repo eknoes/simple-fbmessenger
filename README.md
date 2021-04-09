@@ -6,8 +6,17 @@ This is an unofficial, simple library to provide basic communication with Facebo
 * Support for Buttons and QuickReplies
 * Support for images
 
-It is currently Work in progress, Pull Requests are more than welcome! Examples can be found in [examples/
-](https://github.com/eknoes/simple-fbmessenger/tree/main/examples).
+## Installation
+```
+python -m pip install simple-fbmessenger
+```
+
+## Usage
+Examples can be found in [examples/](https://github.com/eknoes/simple-fbmessenger/tree/main/examples).
+Documentation is not yet provided, interfaces may change between releases as it is still in development.
+
+## Development
+It is currently work in progress, PRs are more than welcome!
 
 Uses: 
 * [aiohttp](https://github.com/aio-libs/aiohttp), Apache Software License (Apache 2)
