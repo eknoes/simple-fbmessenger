@@ -37,8 +37,11 @@ class Messenger(API):
             if 'messaging' in event:
                 for m in event['messaging']:
                     message = None
-                    if 'text' in m['message']:
-                        message = Message(m['sender']['id'], m['recipient']['id'], text=m['message']['text'])
+
+                    if 'message' in m:
+                        if 'text' in m['message']:
+                            message = Message(m['sender']['id'], m['recipient']['id'], text=m['message']['text'])
+
                         if 'quick_reply' in m['message']:
                             message.payload = m['message']['quick_reply']['payload']
 
