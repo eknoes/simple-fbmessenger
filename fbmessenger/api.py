@@ -5,6 +5,7 @@ import shutil
 from typing import List, Optional, Dict
 
 import aiohttp
+from aiohttp import ClientSession
 
 from fbmessenger.errors import MessengerError
 from fbmessenger.models import Message, MessagingType, SenderAction, QuickReply, PostbackButton
@@ -41,83 +42,86 @@ class API:
         if buttons and len(buttons) > 3:
             raise ValueError("Using more than 3 buttons is not supported")
 
-        messaging_type = MessagingType.MESSAGE_TAG
-        if reply:
-            messaging_type = MessagingType.RESPONSE
+        async with aiohttp.ClientSession() as session:
+            messaging_type = MessagingType.MESSAGE_TAG
+            if reply:
+                messaging_type = MessagingType.RESPONSE
 
-        # Send all images first
-        if images:
-            send_image_tasks = []
-            for image in images:
-                send_image_tasks.append(self._send_attachment(self._get_messaging_dict(messaging_type, recipient_id), image))
-            await asyncio.gather(send_image_tasks)
+            # Send all images first
+            if images:
+                send_image_tasks = []
+                for image in images:
+                    send_image_tasks.append(self._send_attachment(session, self._get_messaging_dict(messaging_type, recipient_id), image))
+                await asyncio.gather(send_image_tasks)
 
-        # Construct message dict
-        base_dict = self._get_messaging_dict(messaging_type, recipient_id)
+            # Construct message dict
+            base_dict = self._get_messaging_dict(messaging_type, recipient_id)
 
-        if not buttons:
-            base_dict['message']['text'] = text
+            if not buttons:
+                base_dict['message']['text'] = text
 
-        if quick_replies:
-            replies = []
-            for reply in quick_replies:
-                reply_dict = {'content_type': 'text', 'title': reply.title, 'payload': reply.payload}
-                if reply.image_url:
-                    reply_dict['image_url'] = reply.image_url
-                replies.append(reply_dict)
-            base_dict['message']['quick_replies'] = replies
+            if quick_replies:
+                replies = []
+                for reply in quick_replies:
+                    reply_dict = {'content_type': 'text', 'title': reply.title, 'payload': reply.payload}
+                    if reply.image_url:
+                        reply_dict['image_url'] = reply.image_url
+                    replies.append(reply_dict)
+                base_dict['message']['quick_replies'] = replies
 
-        if buttons:
-            buttons = list(map(lambda x: {'type': x.type, 'payload': x.payload, 'title': x.title}, buttons))
-            payload = {'template_type': 'button', 'text': text, 'buttons': buttons}
-            base_dict['message']['attachment'] = {'type': 'template', 'payload': payload}
+            if buttons:
+                buttons = list(map(lambda x: {'type': x.type, 'payload': x.payload, 'title': x.title}, buttons))
+                payload = {'template_type': 'button', 'text': text, 'buttons': buttons}
+                base_dict['message']['attachment'] = {'type': 'template', 'payload': payload}
 
-        return await self._send_message_dict(base_dict)
+            return await self._send_message_dict(session, base_dict)
 
     async def send_attachments(self, recipient_id: str, attachments: List[str], file_type: str = "image"):
-        for attachment in attachments:
-            await self._send_attachment(self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id),
-                                        attachment, file_type)
+        async with aiohttp.ClientSession() as session:
+            for attachment in attachments:
+                await self._send_attachment(session, self._get_messaging_dict(MessagingType.MESSAGE_TAG, recipient_id),
+                                            attachment, file_type)
 
     async def set_get_started_payload(self, payload: str):
-        await self._send_message_dict({'get_started': {'payload': payload}}, 'me/messenger_profile')
+        async with aiohttp.ClientSession() as session:
+            await self._send_message_dict(session, {'get_started': {'payload': payload}}, 'me/messenger_profile')
 
     async def set_greeting_text(self, greeting_text: str):
-        await self._send_message_dict({'greeting': [{'locale': 'default', 'text': greeting_text}]},
-                                      'me/messenger_profile')
+        async with aiohttp.ClientSession() as session:
+            await self._send_message_dict(session, {'greeting': [{'locale': 'default', 'text': greeting_text}]},
+                                          'me/messenger_profile')
 
-    async def _send_attachment(self, message_dict, attachment: str, file_type: str = "image") -> bool:
+    async def _send_attachment(self, session: ClientSession, message_dict, attachment: str, file_type: str = "image") -> bool:
         filename = os.path.basename(shutil.copy2(attachment, self.attachment_location))
         url = self.public_attachment_url + filename
         message_dict['message']['attachment'] = {'type': file_type, 'payload': {'url': url, 'is_reusable': True}}
-        return await self._send_message_dict(message_dict)
+        return await self._send_message_dict(session, message_dict)
 
-    async def _send_message_dict(self, message_dict, endpoint="me/messages") -> bool:
+    async def _send_message_dict(self, session: ClientSession, message_dict, endpoint="me/messages") -> bool:
         self.log.debug(f"Send message:\n{message_dict}")
-        async with aiohttp.ClientSession() as session:
-            url = self._get_endpoint_url(endpoint)
-            self.log.debug(f"Send to {url}")
-            response = await session.post(url, json=message_dict)
-            self.log.debug(f"Response of Facebook API: {response.status} {response.reason}")
-            json_response = await response.json()
 
-            if 200 <= response.status < 300:
-                if 'message_id' in json_response:
-                    return True
-                return False
+        url = self._get_endpoint_url(endpoint)
+        self.log.debug(f"Send to {url}")
+        response = await session.post(url, json=message_dict)
+        self.log.debug(f"Response of Facebook API: {response.status} {response.reason}")
+        json_response = await response.json()
 
-            self.log.warning(f"An error occurred:\n{json_response}")
-            if 'error' not in json_response:
-                raise ValueError("Messenger API did not return an HTTP Status Code 2XX, but also no error response")
+        if 200 <= response.status < 300:
+            if 'message_id' in json_response:
+                return True
+            return False
 
-            error = json_response['error']
+        self.log.warning(f"An error occurred:\n{json_response}")
+        if 'error' not in json_response:
+            raise ValueError("Messenger API did not return an HTTP Status Code 2XX, but also no error response")
 
-            subcode = None
-            if 'subcode' in error:
-                subcode = error['subcode']
+        error = json_response['error']
 
-            raise MessengerError(error['message'], error['type'], error['code'], subcode, error['fbtrace_id'])
-        return False
+        subcode = None
+        if 'subcode' in error:
+            subcode = error['subcode']
+
+        raise MessengerError(error['message'], error['type'], error['code'], subcode, error['fbtrace_id'])
 
     @staticmethod
     def _get_messaging_dict(messaging_type: MessagingType, recipient_id: str) -> Dict:
