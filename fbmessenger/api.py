@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import shutil
@@ -46,8 +47,10 @@ class API:
 
         # Send all images first
         if images:
+            send_image_tasks = []
             for image in images:
-                await self._send_attachment(self._get_messaging_dict(messaging_type, recipient_id), image)
+                send_image_tasks.append(self._send_attachment(self._get_messaging_dict(messaging_type, recipient_id), image))
+            await asyncio.gather(send_image_tasks)
 
         # Construct message dict
         base_dict = self._get_messaging_dict(messaging_type, recipient_id)
