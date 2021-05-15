@@ -92,7 +92,12 @@ class API:
                                           'me/messenger_profile')
 
     async def _send_attachment(self, session: ClientSession, message_dict, attachment: str, file_type: str = "image") -> bool:
-        filename = os.path.basename(shutil.copy2(attachment, self.attachment_location))
+        try:
+            location = shutil.copy2(attachment, self.attachment_location)
+        except shutil.SameFileError:
+            location = attachment
+
+        filename = os.path.basename(location)
         url = self.public_attachment_url + filename
         message_dict['message']['attachment'] = {'type': file_type, 'payload': {'url': url, 'is_reusable': True}}
         return await self._send_message_dict(session, message_dict)
