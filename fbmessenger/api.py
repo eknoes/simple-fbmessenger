@@ -49,10 +49,8 @@ class API:
 
             # Send all images first
             if images:
-                send_image_tasks = []
                 for image in images:
-                    send_image_tasks.append(self._send_attachment(session, self._get_messaging_dict(messaging_type, recipient_id), image))
-                await asyncio.gather(send_image_tasks)
+                    await self._send_attachment(session, self._get_messaging_dict(messaging_type, recipient_id), image)
 
             # Construct message dict
             base_dict = self._get_messaging_dict(messaging_type, recipient_id)
