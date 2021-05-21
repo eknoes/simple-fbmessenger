@@ -42,6 +42,9 @@ class API:
         if buttons and len(buttons) > 3:
             raise ValueError("Using more than 3 buttons is not supported")
 
+        if buttons and len(text) > 640:
+            raise ValueError("A message with a button template has a limit of 640 characters")
+
         async with aiohttp.ClientSession() as session:
             messaging_type = MessagingType.MESSAGE_TAG
             if reply:
